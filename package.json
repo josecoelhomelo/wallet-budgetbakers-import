@@ -1,6 +1,32 @@
 {
-  "dependencies": {
-    "fs": "^0.0.1-security",
-    "puppeteer": "^13.7.0"
-  }
+    "dependencies": {
+        "fs": "^0.0.1-security",
+        "puppeteer": "^13.7.0"
+    },
+    "name": "budgetbakers-import",
+    "description": "Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.",
+    "version": "1.0.0",
+    "main": "app.js",
+    "devDependencies": {},
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/josecoelhomelo/budgetbakers-import.git"
+    },
+    "keywords": [
+        "budgetbakers",
+        "wallet",
+        "import",
+        "transactions",
+        "file",
+        "csv"
+    ],
+    "author": "José Melo",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/josecoelhomelo/budgetbakers-import/issues"
+    },
+    "homepage": "https://github.com/josecoelhomelo/budgetbakers-import#readme"
 }
