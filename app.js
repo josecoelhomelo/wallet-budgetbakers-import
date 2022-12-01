@@ -7,7 +7,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
 
     const fileContent = await fs.promises.readFile(file, 'utf8');
     if (!fileContent) { return reject(`Can't read file`); }
-    if (!fileContent.includes('date,note,amount')){ return reject('File data may have wrong format'); }   
+    if (!fileContent.includes('date,note,amount,expense')){ return reject('File data may have wrong format'); }   
         
     const browser = await puppeteer.launch({headless: false});
     const page = await browser.newPage();
@@ -42,7 +42,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
         }
 
         const data = fileContent.split('\n');
-        let newData = ['date,note,amount'];
+        let newData = ['date,note,amount,expense'];
         let newDataChanged = false;
     
         data.forEach(row => {          
