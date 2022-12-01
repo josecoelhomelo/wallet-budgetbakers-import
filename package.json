@@ -1,6 +1,5 @@
 {
     "dependencies": {
-        "fs": "^0.0.1-security",
         "puppeteer": "^13.7.0"
     },
     "name": "budgetbakers-import",

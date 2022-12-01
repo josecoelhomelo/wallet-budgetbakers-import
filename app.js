@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('node:fs');
 const puppeteer = require('puppeteer');
 
 const uploadFile = (email, password, file, checkDate = false) => new Promise(async (resolve, reject) => {
@@ -69,6 +69,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
     await browser.close();
     resolve('File successfully imported');
 });
+
 module.exports = {
     uploadFile
 };
