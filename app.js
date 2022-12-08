@@ -13,7 +13,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
     if (!fileContent.includes('date,note,amount,expense')) { return reject('File data may have wrong format'); }   
 
     const api = 'https://api.budgetbakers.com';    
-    const proto = await protobuf.load('messages.proto');  
+    const proto = await protobuf.load(`${__dirname}/messages.proto`);   
     let userID, cookie;
 
     axios.post(`${api}/auth/authenticate/userpass`, qs.stringify({
