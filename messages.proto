@@ -1,0 +1,39 @@
+package budgetbakers;
+syntax = 'proto3';
+  
+message User {
+    string id = 1;
+}
+
+message Imports {
+    repeated File files = 4;
+
+    message File {
+        string id = 1;
+        string unknownUUID1 = 2;
+        string accountId = 3;
+        int64 timestamp = 4;
+        string unknownUUID2 = 5;
+        string fileName = 6;
+    }
+}
+
+message Timestamp {
+    repeated Unknown unknown = 1;
+    repeated Format format = 2;
+
+    message Unknown {
+        int64 id = 1;
+        int64 id2 = 2;
+    }
+    
+    message Format {
+        int64 id = 1;
+        int64 id2 = 2;
+        int64 id3 = 3;
+        string id4 = 4;
+        string id5 = 5;
+        int64 id6 = 6;
+        string id7 = 7;
+    }
+}

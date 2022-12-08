@@ -1,6 +1,8 @@
 {
     "dependencies": {
-        "puppeteer": "^13.7.0"
+        "axios": "^1.2.0",
+        "protobufjs": "^7.1.2",
+        "qs": "^6.11.0"
     },
     "name": "budgetbakers-import",
     "description": "Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.",
