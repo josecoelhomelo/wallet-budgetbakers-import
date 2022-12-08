@@ -54,7 +54,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
                 responseType: 'arraybuffer'
             });                    
         })
-        .catch(err => reject('Retrieving imports failed'))  
+        .catch(err => reject('Retrieving imported files failed'))  
         .then(res => {
             const imports = proto.lookupType("budgetbakers.Imports")
             const message = imports.decode(new Uint8Array(res.data));
