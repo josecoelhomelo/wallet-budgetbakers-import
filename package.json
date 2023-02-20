@@ -6,7 +6,7 @@
     },
     "name": "budgetbakers-import",
     "description": "Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "main": "app.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
