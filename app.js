@@ -102,7 +102,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
                 }
             });
         }) 
-        .catch(err => reject('Uploading file failed'))  
+        .catch(err => reject('Uploading file failed'))
         .then(res => {               
             return axios.get(`${api}/ribeez/import/v1/all`, {
                 headers: {
@@ -130,11 +130,11 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
                 ],
                 format: [{
                     id: 1,
-                    id2: 2,
+                    id2: 5,
                     id3: 1,
                     id4: ',',
                     id5: 'UTC',
-                    id6: 2,
+                    id6: 5,
                     id7: `yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ`
                 }]
             };          
