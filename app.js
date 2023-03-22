@@ -8,13 +8,13 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
     if (!email || !password) { return reject('Credentials required'); }
     if (!file || !fs.existsSync(file)) { return reject('File not specified or not found'); }
 
-    const fileContent = await fs.promises.readFile(file, 'utf8');
+    let fileContent = await (await fs.promises.readFile(file, 'utf8')).split('\n');
     if (!fileContent) { return reject(`Can't read file`); }
-    if (!fileContent.includes('date,note,amount,expense')) { return reject('File data may have wrong format'); }   
+    if (!fileContent.includes('date,note,amount,expense')) { return reject('File data may have wrong format'); } 
 
     const api = 'https://api.budgetbakers.com';    
     const proto = await protobuf.load(`${__dirname}/messages.proto`);   
-    let userID, cookie;
+    let userID, cookie, fileLength;
 
     axios.post(`${api}/auth/authenticate/userpass`, qs.stringify({
             username: email,
@@ -71,26 +71,17 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
                     return;
                 }
 
-                const data = fileContent.split('\n');
-                const newData = ['date,note,amount,expense'];
-                let newDataChanged = false;
-            
-                data.forEach(row => {          
-                    if (Date.parse(row.substring(0, 16)) >= lastUploadDate) {
-                        newData.push(row);
-                        newDataChanged = true;
-                    }
-                });
-        
-                if (!newDataChanged) {
+                fileContent = fileContent.filter(row => row == fileContent[0] || Date.parse(row.substring(0, 16)) >= lastUploadDate);        
+                if (fileContent.length == 1) {
                     return resolve('Transactions up to date, file not imported');
                 }
         
-                fs.writeFileSync(file, newData.join('\n'), err => {
+                fs.writeFileSync(file, fileContent.join('\n'), err => {
                     return reject('Error rewriting file');
                 });
             }
-                        
+
+            fileLength = fileContent.length;                        
             return axios.post('https://docs.budgetbakers.com/upload/import-web/fhfxoy@imports.budgetbakers.com', fs.readFileSync(file, 'utf8'), {
                 headers: {
                     'content-type': 'text/csv',
@@ -130,11 +121,11 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
                 ],
                 format: [{
                     id: 1,
-                    id2: 5,
+                    id2: fileLength,
                     id3: 1,
                     id4: ',',
                     id5: 'UTC',
-                    id6: 5,
+                    id6: fileLength,
                     id7: `yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ`
                 }]
             };          
