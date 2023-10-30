@@ -18,7 +18,7 @@ Pass the following arguments to upload a file:
 
 `username` - Your login username\
 `password` - Your login password\
-`file` - File name with its path, e.g. `path/to/file/2022-03-20T16-20.csv`
+`file` - File name with its path, e.g. `path/to/file/2022-03-20T16-20.csv`\
 `email` - The account's import e-mail. You can find it in your account's settings\
 `account id` - Optional field for the account's ID. By using this argument, the module will check if the transactions are up to date. File won't be uploaded if they are. For it to work properly make sure your file's name has the `YYYY-MM-DDTHH-MM` format, for example: `2022-03-20T16-20`
 
