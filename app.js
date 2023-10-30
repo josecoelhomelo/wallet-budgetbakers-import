@@ -4,9 +4,10 @@ const axios = require('axios');
 const qs = require('qs');
 const protobuf = require('protobufjs');
 
-const uploadFile = (email, password, file, checkDate = false) => new Promise(async (resolve, reject) => {
-    if (!email || !password) { return reject('Credentials required'); }
+const uploadFile = (username, password, file, importEmail, accountId = null) => new Promise(async (resolve, reject) => {
+    if (!username || !password) { return reject('Credentials required'); }
     if (!file || !fs.existsSync(file)) { return reject('File not specified or not found'); }
+    if (!importEmail) { return reject('Import e-mail address required'); }
 
     let fileContent = await (await fs.promises.readFile(file, 'utf8')).split('\n');
     if (!fileContent) { return reject(`Can't read file`); }
@@ -17,7 +18,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
     let userID, cookie, fileLength;
 
     axios.post(`${api}/auth/authenticate/userpass`, qs.stringify({
-            username: email,
+            username: username,
             password: password,
         }), {            
             headers: {
@@ -55,21 +56,17 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
             });                    
         })
         .catch(err => reject('Retrieving imported files failed'))  
-        .then(res => {
+        .then(res => { 
             const imports = proto.lookupType("budgetbakers.Imports")
-            const message = imports.decode(new Uint8Array(res.data));
-            const lastFile = imports.toObject(message).files[0];
+            const message = imports.decode(new Uint8Array(res.data));            
+            const files = imports.toObject(message).files;
+            const lastFile = files.find(file => file.accountId == accountId);
 
-            if (lastFile && checkDate) { 
-                const fileName = lastFile.fileName.slice(0, -4);
+            if (lastFile && accountId) { 
+                const fileName = path.parse(lastFile.fileName).name;
                 const lastIndex = fileName.lastIndexOf('-');
                 const newFileName = `${fileName.substring(0, lastIndex)}:${fileName.substring(lastIndex + 1)}`;
                 const lastUploadDate = Date.parse(newFileName);
-
-                if (!lastUploadDate) {
-                    console.warn(`Couldn't read last uploaded date`);
-                    return;
-                }
 
                 fileContent = fileContent.filter(row => row == fileContent[0] || Date.parse(row.substring(0, 16)) >= lastUploadDate);        
                 if (fileContent.length == 1) {
@@ -82,7 +79,7 @@ const uploadFile = (email, password, file, checkDate = false) => new Promise(asy
             }
 
             fileLength = fileContent.length;                        
-            return axios.post('https://docs.budgetbakers.com/upload/import-web/fhfxoy@imports.budgetbakers.com', fs.readFileSync(file, 'utf8'), {
+            return axios.post(`https://docs.budgetbakers.com/upload/import-web/${importEmail}`, fs.readFileSync(file, 'utf8'), {
                 headers: {
                     'content-type': 'text/csv',
                     'flavor': '0',
