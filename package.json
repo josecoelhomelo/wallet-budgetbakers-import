@@ -4,7 +4,7 @@
         "protobufjs": "^7.2.2",
         "qs": "^6.11.0"
     },
-    "name": "budgetbakers-import",
+    "name": "wallet-budgetbakers-import",
     "description": "Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.",
     "version": "2.0.3",
     "main": "app.js",
@@ -13,7 +13,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/josecoelhomelo/budgetbakers-import.git"
+        "url": "git+https://github.com/josecoelhomelo/wallet-budgetbakers-import.git"
     },
     "keywords": [
         "budgetbakers",
@@ -26,7 +26,7 @@
     "author": "José Melo",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/josecoelhomelo/budgetbakers-import/issues"
+        "url": "https://github.com/josecoelhomelo/wallet-budgetbakers-import/issues"
     },
-    "homepage": "https://github.com/josecoelhomelo/budgetbakers-import#readme"
+    "homepage": "https://github.com/josecoelhomelo/wallet-budgetbakers-import#readme"
 }

@@ -14,7 +14,8 @@ date,note,amount,expense
 ```
 
 ### uploadFile
-Pass the following arguments to upload a file:\
+Pass the following arguments to upload a file:
+
 `username` - Your login username\
 `password` - Your login password\
 `file` - File name with its path, e.g. `path/to/file/2022-03-20T16-20.csv`
