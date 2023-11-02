@@ -66,9 +66,9 @@ const uploadFile = (username, password, file, importEmail, accountId = null) => 
                 const fileName = path.parse(lastFile.fileName).name;
                 const lastIndex = fileName.lastIndexOf('-');
                 const newFileName = `${fileName.substring(0, lastIndex)}:${fileName.substring(lastIndex + 1)}`;
-                const lastUploadDate = Date.parse(newFileName);
+                const lastUploadDate = new Date(newFileName).toISOString();
 
-                fileContent = fileContent.filter(row => row == fileContent[0] || Date.parse(row.substring(0, 16)) >= lastUploadDate);        
+                fileContent = fileContent.filter(row => row == fileContent[0] || row.substring(0,24) >= lastUploadDate);      
                 if (fileContent.length == 1) {
                     return resolve('Transactions up to date, file not imported');
                 }

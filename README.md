@@ -5,12 +5,12 @@ Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.
 
 # Usage
 
-Your CSV file with transactions must have the following format (date in mm-dd-yyyy):
+Your CSV file with transactions must have the following format (date in ISO 8601):
 
 ```csv
 date,note,amount,expense
-03-15-2022,Supermarket,0,1.99
-03-07-2022,Income,200.00,0
+2023-03-15T10:30:00.000Z,Supermarket,0,1.99
+2023-03-07T15:00:00.000Z,Income,200.00,0
 ```
 
 ### uploadFile
