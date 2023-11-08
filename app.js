@@ -60,7 +60,7 @@ const uploadFile = (username, password, file, importEmail, accountId = null) => 
             const imports = proto.lookupType("budgetbakers.Imports")
             const message = imports.decode(new Uint8Array(res.data));            
             const files = imports.toObject(message).files;
-            const lastFile = files.find(file => file.accountId == accountId);
+            const lastFile = files ? files.find(file => file.accountId == accountId) : null;
 
             if (lastFile && accountId) { 
                 const fileName = path.parse(lastFile.fileName).name;
