@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import protobuf from 'protobufjs';
-const proto = await protobuf.load('messages.proto');   
+const proto = await protobuf.load(`${import.meta.dirname}/messages.proto`);   
 const endpoint = 'https://api.budgetbakers.com';
 let cookie, userId;
 
