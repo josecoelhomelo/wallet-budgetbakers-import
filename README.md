@@ -1,30 +1,69 @@
 Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.
 
 # Installation
-`npm install wallet-budgetbakers-import`
+Install the package using npm:
+```
+npm install wallet-budgetbakers-import
+```
 
-# Usage
+After installing, import it into your project:
+```js
+import wallet from 'wallet-budgetbakers-import';
+```
 
-Your CSV file with transactions must have the following format (date in ISO 8601):
+# Example
+Importing a CSV file:
 
+```js
+import wallet from 'wallet-budgetbakers-import';
+try {
+    await wallet.login('your-email@provider.com', 'YourPassword123456');
+    const result = await wallet.importFile({
+        file: 'path/to/file/2022-03-20T16-20.csv',
+        email: 'account-email@imports.budgetbakers.com'  
+    });   
+    console.log(result);    
+} catch(err) {
+    console.error(err);
+}
+```
+
+# Methods
+
+### login
+Logs in with the provided credentials.
+```js
+wallet.login('your-email@provider.com', 'YourPassword123456');
+```
+
+### getImports
+Retrieves an array of imported files.
+```js
+wallet.getImports('-Account_00000000-0000-0000-0000-000000000000');
+```
+By providing an account identification, the result will be filtered accordingly. The id can be found in the URL, when navigating to the account detail, in Wallet's web app.
+
+### importFile
+Imports an CSV file.
+```js
+wallet.importFile({
+    file: 'path/to/file/2022-03-20T16-20.csv',
+    email: 'account-email@imports.budgetbakers.com',
+    accountId: '-Account_00000000-0000-0000-0000-000000000000',
+    newRecordsOnly: false
+}); 
+```
+
+| Property | Definition |
+| -------- | ---------- |
+| file | Path to the file to import |
+| email | Account's import e-mail. You can find it in your account's settings |
+| accountId | Optional; specifies to which account the transactions will be imported |
+| newRecordsOnly | Defaults to `true`; only new transactions will be imported. For it to work properly, make sure your file's name has the `YYYY-MM-DDTHH-MM` format, for example: `2022-03-20T16-20` |
+
+File with transactions must have the following format (date in ISO 8601):
 ```csv
 date,note,amount,expense
 2023-03-15T10:30:00.000Z,Supermarket,0,1.99
 2023-03-07T15:00:00.000Z,Income,200.00,0
-```
-
-### uploadFile
-Pass the following arguments to upload a file:
-
-`username` - Your login username\
-`password` - Your login password\
-`file` - File name with its path, e.g. `path/to/file/2022-03-20T16-20.csv`\
-`email` - The account's import e-mail. You can find it in your account's settings\
-`account id` - Optional field for the account's ID. By using this argument, the module will check if the transactions are up to date. File won't be uploaded if they are. For it to work properly make sure your file's name has the `YYYY-MM-DDTHH-MM` format, for example: `2022-03-20T16-20`
-
-```js
-const wallet = require('wallet-budgetbakers-import');
-wallet.uploadFile('username', 'password', 'path/to/file/2022-03-20T16-20.csv', 'abcdef@imports.budgetbakers.com', '-Account_00000000-0000-0000-0000-000000000000').then(res => {
-    console.log(res));
-});
 ```
