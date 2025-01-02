@@ -163,9 +163,10 @@ const importFile = async (params) => {
     if (!file || !fs.existsSync(file)) { throw Error('File not specified or not found'); }
     if (!email) { throw Error('Import e-mail address required'); }    
 
-    let fileContent = (await fs.promises.readFile(file, 'utf8')).split('\n');
+    let fileContent = await fs.promises.readFile(file, 'utf8');
     if (!fileContent) { throw Error(`Reading file failed`); }
     if (!fileContent.includes('date,note,amount,expense')) { throw Error('File data may have wrong format'); }
+    fileContent = fileContent.split('\n');
 
     try {
         let imports = await getImports(accountId);
