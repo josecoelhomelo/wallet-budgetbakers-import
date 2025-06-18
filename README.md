@@ -1,17 +1,33 @@
+<!-- omit from toc -->
+# Wallet-BudgetBakers-Import
+
 Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.
 
-# Installation
+- [Installation](#installation)
+- [Getting started](#getting-started)
+  - [Methods](#methods)
+    - [`login(username, email)`](#loginusername-email)
+    - [`getImports()`](#getimports)
+    - [`importFile(config)`](#importfileconfig)
+  - [CSV file](#csv-file)
+    - [Avoiding import problems](#avoiding-import-problems)
+
+## Installation
+
 Install the package using npm:
-```
+
+```shell
 npm install wallet-budgetbakers-import
 ```
 
 After installing, import it into your project:
+
 ```js
 import wallet from 'wallet-budgetbakers-import';
 ```
 
-# Example
+## Getting started
+
 Importing a CSV file:
 
 ```js
@@ -28,23 +44,30 @@ try {
 }
 ```
 
-# Methods
+### Methods
 
-### login
+#### `login(username, email)`
+
 Logs in with the provided credentials.
+
 ```js
 wallet.login('your-email@provider.com', 'YourPassword123456');
 ```
 
-### getImports
+#### `getImports()`
+
 Retrieves an array of imported files.
+
 ```js
 wallet.getImports('-Account_00000000-0000-0000-0000-000000000000');
 ```
+
 By providing an account identification, the result will be filtered accordingly. The id can be found in the URL, when navigating to the account detail, in Wallet's web app.
 
-### importFile
+#### `importFile(config)`
+
 Imports an CSV file.
+
 ```js
 wallet.importFile({
     file: 'path/to/file/2022-03-20T16-20.csv',
@@ -54,16 +77,54 @@ wallet.importFile({
 }); 
 ```
 
-| Property | Definition |
-| -------- | ---------- |
-| file | Path to the file to import |
-| email | Account's import e-mail. You can find it in your account's settings |
-| accountId | Optional; specifies to which account the transactions will be imported |
-| newRecordsOnly | Defaults to `true`; only new transactions will be imported. For it to work properly, make sure your file's name has the `YYYY-MM-DDTHH-MM` format, for example: `2022-03-20T16-20` |
+The following is a list of the available configuration values:
 
-File with transactions must have the following format (date in ISO 8601):
+| Property | Definition |
+| :--------: | ---------- |
+| `file` | Path to the file to import |
+| `email` | Account's import e-mail. You can find it in your account's settings |
+| `accountId` | Optional; specifies to which account the transactions will be imported |
+| `newRecordsOnly` | Defaults to `true`; only new transactions will be imported. For it to work properly, make sure your file's name has the `YYYY-MM-DDTHH-MM` format, for example: `2022-03-20T16-20` |
+
+### CSV file
+
+A minimal file with transactions may be the following:
+
 ```csv
 date,note,amount,expense
-2023-03-15T10:30:00.000Z,Supermarket,0,1.99
-2023-03-07T15:00:00.000Z,Income,200.00,0
+2023-03-15T10:30:00.000Z,0,1.99
+2023-03-07T15:00:00.000Z,200.00,0
 ```
+
+The following is a complete list of CSV values you can use to import your data:
+
+| Header name | Required? |    Value type   | Examples                     |
+|:-----------:|:---------:|:---------------:|------------------------------|
+| `date`      | Yes       | ISO date string | `"2023-03-15T10:30:00.000Z"` |
+| `amount`    | Yes       | Decimal number  | `123.45`, `10`               |
+| `expense`   | Yes       | Decimal number  | `123.45`, `10`               |
+| `currency`  | No        | String          | `"USD"`, `"EUR"`             |
+| `note`      | No        | String          | `"This is a note"`           |
+| `payee`     | No        | String          | `"shop@example.com"`         |
+
+#### Avoiding import problems
+
+In order to avoid problems during the import please follow the following rules:
+
+- `date` MUST be in a standard ISO format, comprehensive of timezone info, otherwise the Wallet API will ject > the CSV as invalid
+- `amount` and `expense` are mutually exclusive, they CAN NOT be set at the same time!
+  
+  The following is an **invalid CSV** and the *import will fail*:
+    
+    ```csv
+    date,amount,expense
+    2023-03-15T10:30:00.000Z,200.14,1.99
+    ```
+  
+  To **fix** we must split the two values into **separate records** (date may be the same):
+    
+    ```csv
+    date,amount,expense
+    2023-03-15T10:30:00.000Z,200.14,0
+    2023-03-15T10:30:00.000Z,0,1.99
+    ```
