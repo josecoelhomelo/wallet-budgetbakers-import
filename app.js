@@ -182,18 +182,38 @@ const importFile = async (params) => {
 
     try {
         let imports = await getImports(accountId);
-        if (imports[0] && newRecordsOnly) {
+        
+        if (newRecordsOnly && imports.length > 0 && imports[0]) {
             const fileName = path.parse(imports[0].fileName).name;
             const lastIndex = fileName.lastIndexOf('-');
             const newFileName = `${fileName.substring(0, lastIndex)}:${fileName.substring(lastIndex + 1)}`;
             const lastUploadDate = new Date(newFileName).toISOString();
-            fileContent = fileContent.filter(row => row == fileContent[0] || row.substring(0,24) > lastUploadDate);      
-            if (fileContent.length === 1) { return 'Transactions up to date, file not imported'; }    
+            
+            fileContent = fileContent.filter(row => row == fileContent[0] || row.substring(0,24) > lastUploadDate);
+            if (fileContent.length === 1) {
+                return 'Transactions up to date, file not imported';
+            }
+
             await fs.promises.writeFile(file, fileContent.join('\n'));
-        }        
+        }
+
         const fileLength = fileContent.length;  
         await upload(file, email);
         imports = await getImports(accountId);
+        
+        /*
+            Additional safety check, if for whatever reason no imports are found.
+            
+            This may happen if the `accountId` and the `email` do not
+            belong to the same account.
+
+            One may for example try to import a file with an email that is
+            associated with the account A but by passing `accountId` of account B.
+        */
+        if (!imports || imports.length === 0) {
+            throw Error('No imports found after upload. Please check your email and account ID.');
+        }
+
         const fileId = imports[0]?.id;
         await makeImport(fileId, fileLength);
         return 'File imported successfully';
