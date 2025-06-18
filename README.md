@@ -9,6 +9,7 @@ Node.js module to import a CSV file with transactions to BudgetBakers' Wallet.
     - [`login(username, email)`](#loginusername-email)
     - [`getImports()`](#getimports)
     - [`importFile(config)`](#importfileconfig)
+    - [`upload(file, email)`](#uploadfile-email)
   - [CSV file](#csv-file)
     - [Avoiding import problems](#avoiding-import-problems)
 
@@ -85,6 +86,19 @@ The following is a list of the available configuration values:
 | `email` | Account's import e-mail. You can find it in your account's settings |
 | `accountId` | Optional; specifies to which account the transactions will be imported |
 | `newRecordsOnly` | Defaults to `true`; only new transactions will be imported. For it to work properly, make sure your file's name has the `YYYY-MM-DDTHH-MM` format, for example: `2022-03-20T16-20` |
+
+#### `upload(file, email)`
+
+Upload the CSV file to Wallet `Imports` section.
+
+> [!NOTE]
+> Since this function is **used internally** by [`importFile(config)`](#importfileconfig), usually you wouldn't need it.
+>
+> However, Wallet imports now have a feature called "Automatic imports" which allow processing the CSV as soon as it is uploaded to the interface:
+>
+> ![Screenshot of the "Automatic Imports" switch](docs/images/automatic-imports-switch.png)
+>
+> This function may come in handy in case you decide to enable this feature.
 
 ### CSV file
 
