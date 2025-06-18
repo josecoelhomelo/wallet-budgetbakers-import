@@ -2,7 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import protobuf from 'protobufjs';
-const proto = await protobuf.load(fs.existsSync('messages.proto') ? 'messages.proto' : `${import.meta.dirname}/messages.proto`);
+
+import { fileURLToPath } from 'url';
+
+// Use `import.meta.url` instead of `__dirname` or `import.meta.dirname`
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const proto = await protobuf.load(fs.existsSync('messages.proto') ? 'messages.proto' : `${__dirname}/messages.proto`);
 const endpoint = 'https://api.budgetbakers.com';
 let cookie, userId;
 
