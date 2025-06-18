@@ -222,4 +222,4 @@ const importFile = async (params) => {
     }
 }
 
-export default { login, getImports, importFile }
+export default { upload, login, getImports, importFile }
