@@ -1,8 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import axios from 'axios';
 import protobuf from 'protobufjs';
-const proto = await protobuf.load(fs.existsSync('messages.proto') ? 'messages.proto' : `${import.meta.dirname}/messages.proto`);
+
+const __dirname = import.meta.dirname || path.dirname(fileURLToPath(import.meta.url));
+const proto = await protobuf.load(fs.existsSync('messages.proto') ? 'messages.proto' : `${__dirname}/messages.proto`);
 const endpoint = 'https://api.budgetbakers.com';
 let cookie, userId;
 
@@ -117,7 +120,7 @@ const upload = (file, email) => new Promise((resolve, reject) => {
  * @returns {Promise<boolean>} True if import successful
  * @throws {Error} If not logged in or import fails
  */
-const makeImport = (fileId, fileLength) => new Promise((resolve, reject) => {
+const processImport = (fileId, fileLength) => new Promise((resolve, reject) => {
     if (!cookie || !userId) { reject(Error('Login required')); }
     if (!fileId || !fileLength) { reject(Error('File identification and length are required')); }
     const timestamp = proto.lookupType('budgetbakers.Timestamp');            
@@ -164,7 +167,7 @@ const makeImport = (fileId, fileLength) => new Promise((resolve, reject) => {
  * @throws {Error} If import process fails
  */
 const importFile = async (params) => {
-    const { file, email, accountId = null, newRecordsOnly = true } = params;
+    const { file, email, accountId = null, newRecordsOnly = true, processImport = true } = params;
     if (!file || !fs.existsSync(file)) { throw Error('File not specified or not found'); }
     if (!email) { throw Error('Import e-mail address required'); }    
 
@@ -174,21 +177,31 @@ const importFile = async (params) => {
     fileContent = fileContent.split('\n');
 
     try {
-        let imports = await getImports(accountId);
-        if (imports[0] && newRecordsOnly) {
+        let imports = await getImports(accountId);  
+
+        if (newRecordsOnly && imports.length) {
             const fileName = path.parse(imports[0].fileName).name;
             const lastIndex = fileName.lastIndexOf('-');
             const newFileName = `${fileName.substring(0, lastIndex)}:${fileName.substring(lastIndex + 1)}`;
-            const lastUploadDate = new Date(newFileName).toISOString();
-            fileContent = fileContent.filter(row => row == fileContent[0] || row.substring(0,24) > lastUploadDate);      
-            if (fileContent.length === 1) { return 'Transactions up to date, file not imported'; }    
+            const lastUploadDate = new Date(newFileName).toISOString();       
+
+            fileContent = fileContent.filter(row => row == fileContent[0] || row.substring(0,24) > lastUploadDate);
+            if (fileContent.length === 1) {
+                return 'Transactions up to date, file not imported';
+            }
             await fs.promises.writeFile(file, fileContent.join('\n'));
-        }        
+        }
+
         const fileLength = fileContent.length;  
         await upload(file, email);
         imports = await getImports(accountId);
-        const fileId = imports[0]?.id;
-        await makeImport(fileId, fileLength);
+        if (!imports.length) {
+            throw Error('No imports found after upload. Please check your e-mail address and account id');
+        }
+        if (processImport) {
+            const fileId = imports[0]?.id;
+            await processImport(fileId, fileLength);
+        }
         return 'File imported successfully';
     } catch (err) {
         throw Error('Import failed', { cause: err });
