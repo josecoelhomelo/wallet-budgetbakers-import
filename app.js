@@ -24,7 +24,7 @@ const login = async (user, password) => {
                 'Content-Type': 'application/x-www-form-urlencoded',                
                 'Flavor': 0,
                 'Platform': 'web',                    
-                'Web-Version-Code': '4.18.14'
+                'Web-Version-Code': '4.18.18'
             }
         });
         cookie = loginData.headers['set-cookie'];
@@ -46,7 +46,7 @@ const getUserId = () => new Promise((resolve, reject) => {
             'Cookie': cookie,
             'Flavor': 0,
             'Platform': 'web',                    
-            'Web-Version-Code': '4.18.14'
+            'Web-Version-Code': '4.18.18'
         },
         responseType: 'arraybuffer'
     })
@@ -72,7 +72,7 @@ const getImports = (accountId = null) => new Promise((resolve, reject) => {
             'Cookie': cookie,
             'Flavor': 0,
             'Platform': 'web',                    
-            'Web-Version-Code': '4.18.14'
+            'Web-Version-Code': '4.18.18'
         },
         responseType: 'arraybuffer'
     })
@@ -103,7 +103,7 @@ const upload = (file, email) => new Promise((resolve, reject) => {
             'x-userid': userId,
             'Flavor': 0,
             'Platform': 'web',                    
-            'Web-Version-Code': '4.18.14'
+            'Web-Version-Code': '4.18.18'
         }
     })
         .then((res) => resolve(true))
@@ -146,7 +146,7 @@ const makeImport = (fileId, fileLength) => new Promise((resolve, reject) => {
             'Content-Type': 'application/x-protobuf',
             'Flavor': 0,
             'Platform': 'web',                    
-            'Web-Version-Code': '4.18.14'
+            'Web-Version-Code': '4.18.18'
         },
     })
         .then((res) => resolve(true))
