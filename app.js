@@ -167,7 +167,7 @@ const processImport = (fileId, fileLength) => new Promise((resolve, reject) => {
  * @throws {Error} If import process fails
  */
 const importFile = async (params) => {
-    const { file, email, accountId = null, newRecordsOnly = true, processImport = true } = params;
+    const { file, email, accountId = null, newRecordsOnly = true, process = true } = params;
     if (!file || !fs.existsSync(file)) { throw Error('File not specified or not found'); }
     if (!email) { throw Error('Import e-mail address required'); }    
 
@@ -198,7 +198,7 @@ const importFile = async (params) => {
         if (!imports.length) {
             throw Error('No imports found after upload. Please check your e-mail address and account id');
         }
-        if (processImport) {
+        if (process) {
             const fileId = imports[0]?.id;
             await processImport(fileId, fileLength);
         }
