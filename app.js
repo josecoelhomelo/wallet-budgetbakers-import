@@ -176,8 +176,8 @@ const login = async (email, sessionToken = null) => {
         const ssoToken = await requestSsoToken();
         const authToken = await getAuthToken(email, ssoKey, ssoToken);
         const csrfToken = await getCsrfToken();
-        userId = await getUserId();
         sessionToken = await setSessionToken(authToken, csrfToken);
+        userId = await getUserId();
         return { sessionToken, userId };
     } catch (err) {
         throw Error('Login failed', { cause: err });
