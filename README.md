@@ -22,11 +22,11 @@ Importing a CSV file:
 import wallet from 'wallet-budgetbakers-import';
 try {
     await wallet.login('your-email@provider.com');
-    const importResult = await wallet.importFile({
+    const importRes = await wallet.importFile({
         file: 'path/to/file/2022-03-20T16-20.csv',
         importEmail: 'account-email@imports.budgetbakers.com'  
     });   
-    console.log(importResult);    
+    console.log(importRes);    
 } catch(err) {
     console.error(err);
 }
@@ -60,7 +60,7 @@ Retrieves an array of imported files.
 wallet.getImports('-Account_00000000-0000-0000-0000-000000000000');
 ```
 
-By providing an account identification, the result will be filtered accordingly. This id can be found in the URL, when navigating to the account detail, in Wallet's web app.
+By providing an account id, the result will be filtered accordingly. This id can be found in the URL, when navigating to the account detail, in Wallet's web app.
 
 ### `importFile`
 
