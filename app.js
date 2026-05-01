@@ -5,7 +5,8 @@ import path from 'path';
 import qs from 'qs';
 import readline from 'readline';
 import { CookieJar } from 'tough-cookie';
-const endpoint = 'https://web.budgetbakers.com/api';
+const base = 'https://web.budgetbakers.com';
+const endpoint = `${base}/api`;
 const jar = new CookieJar();
 const client = wrapper(axios.create({ jar, withCredentials: true }));
 let userId = null;
@@ -49,8 +50,8 @@ const requestSsoToken = () => new Promise((resolve, reject) => {
     rl.question('Enter the link or SSO token that was sent to your e-mail: ', (input) => {
         rl.close();
         if (!input) { reject(Error('Link or SSO token is required')); }
-        if (input.includes('https://web.budgetbakers.com/sso?ssoToken=')) {
-            resolve(input.replace('https://web.budgetbakers.com/sso?ssoToken=', ''));
+        if (input.includes(`${base}/sso?ssoToken=`)) {
+            resolve(input.replace(`${base}/sso?ssoToken=`, ''));
         } else {
             resolve(input);
         }
@@ -65,7 +66,7 @@ const requestSsoToken = () => new Promise((resolve, reject) => {
  * @returns {Promise<string>} Resolves with the authentication token.
  * @throws {Error} If the API call fails or the auth token is missing in the response.
  */
-const getAuthToken = (email, ssoKey, ssoToken) => new Promise((resolve, reject) => {
+const getAuthTokenInfo = (email, ssoKey, ssoToken) => new Promise((resolve, reject) => {
     client.post(`${endpoint}/trpc/user.confirmSsoAuth?batch=1`, {
         "0" : { "json": { 
             ssoKey, 
@@ -77,14 +78,14 @@ const getAuthToken = (email, ssoKey, ssoToken) => new Promise((resolve, reject) 
         }
     })  
         .then((res) => {
-            const token = res.data[0]?.result?.data?.json;
-            if (token) {
-                resolve(token);
+            const tokenInfo = res.data[0]?.result?.data?.json;
+            if (tokenInfo) {
+                resolve(tokenInfo);
             } else{
-                reject(Error('Getting auth token failed', { cause: `No auth token in response: ${JSON.stringify(res.data)}` }));
+                reject(Error('Getting auth token info failed', { cause: `No auth token info in response: ${JSON.stringify(res.data)}` }));
             }
         })
-        .catch((err) => reject(Error('Getting auth token failed', { cause: JSON.stringify(err.response.data) })));
+        .catch((err) => reject(Error('Getting auth token info failed', { cause: JSON.stringify(err.response.data) })));
 });
 
 /**
@@ -107,26 +108,33 @@ const getCsrfToken = () => new Promise((resolve, reject) => {
 
 /**
  * Exchanges auth and CSRF tokens for a session cookie and extracts the session token.
- * @param {string} authToken - The authentication token from getAuthToken.
+ * @param {string} authTokenInfo - The authentication token info from getAuthTokenInfo.
  * @param {string} csrfToken - The CSRF token from getCsrfToken.
  * @returns {Promise<string>} Resolves with the session token string.
  * @throws {Error} If setting the session token fails or the token cannot be extracted.
  */
-const setSessionToken = async (authToken, csrfToken) => {
+const setSessionToken = async (authTokenInfo, csrfToken) => {
     try {
-        const callbackUrl = (await jar.getCookies('https://web.budgetbakers.com')).find((cookie) => cookie.key.includes('callback-url'))?.value || 'https://web.budgetbakers.com';
-        const sessionRes = (await client.post(`${endpoint}/auth/callback/sso`, qs.stringify({
-            token: authToken,
+        const callbackUrl = (await jar.getCookies(base)).find((cookie) => cookie.key.includes('callback-url'))?.value || base;
+        const sessionRes = await client.post(`${endpoint}/auth/callback/sso`, qs.stringify({
+            token: authTokenInfo.token,
+            refreshPossibleAt: authTokenInfo.refreshPossibleAt,
             csrfToken,
-            callbackUrl
+            callbackUrl,
+            json: 'true',
+            redirect: 'false'
         }), {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-            },        
-            maxRedirects: 0,
-            validateStatus: (status) => status >= 200 && status < 400
-        }));
-        const sessionToken = sessionRes.headers['set-cookie']?.find((cookie) => cookie.startsWith('__Secure-next-auth.session-token='))?.split(';')[0].split('=')[1]; 
+                'Origin': base,
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin'
+            }
+        });
+        const sessionToken = sessionRes.headers['set-cookie']
+            ?.find((cookie) => cookie.startsWith('__Secure-next-auth.session-token='))
+            ?.split(';')[0].split('=')[1];
         if (sessionToken) {
             return sessionToken;
         } else {
@@ -140,9 +148,9 @@ const setSessionToken = async (authToken, csrfToken) => {
 };
 
 /**
- * Retrieves the user id from BudgetBakers API
- * @returns {Promise<string>} The user id
- * @throws {Error} If retrieving user id fails
+ * Retrieves the authenticated user's BudgetBakers user id.
+ * @returns {Promise<string>} Resolves with the user id.
+ * @throws {Error} If the user id cannot be retrieved or is missing from the response.
  */
 const getUserId = () => new Promise((resolve, reject) => {
     client.get(`${endpoint}/trpc/user.getUser?batch=1&input=${encodeURIComponent(JSON.stringify({"0": { json: null, meta: { values: ["undefined"] } } }))}`)
@@ -158,26 +166,43 @@ const getUserId = () => new Promise((resolve, reject) => {
 });
 
 /**
- * Authenticates user with BudgetBakers API
- * @param {string} email - The e-mail address to use for login.
- * @param {string|null} sessionToken - Optional existing session token to reuse.
- * @returns {Promise<{sessionToken: string, userId: string}>} Resolves with sessionToken and userId after successful authentication.
- * @throws {Error} If credentials are missing or login process fails.
+ * Reuses the locally stored session token and refreshes the cached user id.
+ * @returns {Promise<{sessionToken: string, userId: string}>} Resolves with the reused session token and user id.
+ * @throws {Error} If no token exists or the stored token is no longer valid.
  */
-const login = async (email, sessionToken = null) => {
-    if (!email) { throw Error('Login failed', { cause: 'E-mail address is required' }); }
+const reuseToken = async () => {
+    const sessionToken = fs.existsSync('TOKEN') ? fs.readFileSync('TOKEN', 'utf-8').trim() : null;
+    if (!sessionToken) { throw Error('No session token found'); }
     try {
-        if (sessionToken) {
-            await jar.setCookie(`__Secure-next-auth.session-token=${sessionToken}; Path=/; Secure; HttpOnly; SameSite=Lax`, 'https://web.budgetbakers.com');
-            userId = await getUserId();
-            return { sessionToken, userId };
-        }
+        await jar.setCookie(`__Secure-next-auth.session-token=${sessionToken}; Path=/; Secure; HttpOnly; SameSite=Lax`, base);
+        userId = await getUserId();
+        fs.writeFileSync('TOKEN', sessionToken);
+        return sessionToken;
+    } catch (err) {
+        throw Error('Reusing session token failed', { cause: err });
+    }
+}
+
+/**
+ * Authenticates a user with the BudgetBakers API.
+ * @param {string} email - The e-mail address to use for login.
+ * @returns {Promise<{sessionToken: string, userId: string}>} Resolves with sessionToken and userId after successful authentication.
+ * @throws {Error} If the e-mail address is missing or the login process fails.
+ */
+const login = async (email) => {
+    if (!email) { throw Error('Login failed', { cause: 'E-mail address is required' }); }
+
+    let sessionToken = await reuseToken().catch(() => null);
+    if (sessionToken) { return { sessionToken, userId }; }
+
+    try {
         const ssoKey = await requestLogin(email);
         const ssoToken = await requestSsoToken();
-        const authToken = await getAuthToken(email, ssoKey, ssoToken);
+        const authTokenInfo = await getAuthTokenInfo(email, ssoKey, ssoToken);
         const csrfToken = await getCsrfToken();
-        sessionToken = await setSessionToken(authToken, csrfToken);
+        sessionToken = await setSessionToken(authTokenInfo, csrfToken);
         userId = await getUserId();
+        fs.writeFileSync('TOKEN', sessionToken);
         return { sessionToken, userId };
     } catch (err) {
         throw Error('Login failed', { cause: err });
@@ -185,10 +210,10 @@ const login = async (email, sessionToken = null) => {
 }
 
 /**
- * Gets all imported files from BudgetBakers API
- * @param {string|null} accountId - Optional account id to filter imports
- * @returns {Promise<Array>} Array of imported files
- * @throws {Error} If not logged in or retrieval fails
+ * Gets imported files from the BudgetBakers API.
+ * @param {string|null} [accountId=null] - Optional account id used to filter imports.
+ * @returns {Promise<Array<Object>>} Resolves with the imported files.
+ * @throws {Error} If imported files cannot be retrieved.
  */
 const getImports = (accountId = null) => new Promise((resolve, reject) => {    
     client.get(`${endpoint}/trpc/imports.getAllImportItems?batch=1&input=${encodeURIComponent(JSON.stringify({"0": { json: null, meta: { values: ["undefined"] } } }))}`)
@@ -204,11 +229,11 @@ const getImports = (accountId = null) => new Promise((resolve, reject) => {
 });
 
 /**
- * Uploads a file to BudgetBakers import system
- * @param {string} file - Path to the file to upload
- * @param {string} importEmail - Email address associated with the import
- * @returns {Promise<boolean>} True if upload successful
- * @throws {Error} If login required or upload fails
+ * Uploads a CSV file to the BudgetBakers import system.
+ * @param {string} file - Path to the file to upload.
+ * @param {string} importEmail - E-mail address associated with the import.
+ * @returns {Promise<boolean>} Resolves with true when the upload succeeds.
+ * @throws {Error} If the user id, file, or import e-mail is missing, or if the upload fails.
  */
 const upload = (file, importEmail) => new Promise((resolve, reject) => {
     if (!userId) { reject(Error('Uploading file failed', { cause: 'No user id found' })); }
@@ -228,11 +253,11 @@ const upload = (file, importEmail) => new Promise((resolve, reject) => {
 });
 
 /**
- * Processes an uploaded file for import
- * @param {string} fileId - id of the uploaded file
- * @param {number} recordLength - Number of records in the file
+ * Processes an uploaded file for import.
+ * @param {string} fileId - Id of the uploaded import item.
+ * @param {number} recordLength - Number of rows in the file, including the header row.
  * @returns {Promise<string>} Resolves with the transaction id if import was successful.
- * @throws {Error} If not logged in or import fails
+ * @throws {Error} If the import response is missing data or the import fails.
  */
 const processImport = (fileId, recordLength) => new Promise((resolve, reject) => {
     client.post(`${endpoint}/trpc/imports.importRecords?batch=1`, {
@@ -278,14 +303,15 @@ const processImport = (fileId, recordLength) => new Promise((resolve, reject) =>
 });
 
 /**
- * Main function to handle the complete import process
- * @param {Object} params - Import parameters
- * @param {string} params.file - Path to the file to import
- * @param {string} params.importEmail - Email address for import
- * @param {string|null} params.accountId - Optional account id
- * @param {boolean} params.newRecordsOnly - Whether to import only new records
- * @returns {Promise<string>} Success message
- * @throws {Error} If import process fails
+ * Imports a CSV file into BudgetBakers.
+ * @param {Object} params - Import parameters.
+ * @param {string} params.file - Path to the CSV file to import.
+ * @param {string} params.importEmail - E-mail address for the import endpoint.
+ * @param {string|null} [params.accountId=null] - Optional account id used to find the uploaded import item.
+ * @param {boolean} [params.newRecordsOnly=true] - Whether to rewrite the file with only records newer than the latest import.
+ * @param {boolean} [params.process=true] - Whether to process the uploaded file immediately.
+ * @returns {Promise<string>} Resolves with a transaction id, import item id, or up-to-date message.
+ * @throws {Error} If validation, upload, or import processing fails.
  */
 const importFile = async (params) => {
     const { file, importEmail, accountId = null, newRecordsOnly = true, process = true } = params;
