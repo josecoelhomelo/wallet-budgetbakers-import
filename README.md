@@ -50,7 +50,7 @@ Logs in with a Wallet account e-mail.
 wallet.login('your-email@provider.com');
 ```
 
-In order to validate the login process, the module will prompt the user to enter the link or SSO token that is sent to their e-mail. This function returns the session token and the user id for later use, if needed.
+In order to validate the login process, the module will prompt the user to enter the link or SSO token that is sent to their e-mail. The authenticated session is stored locally in `cookies.json` and reused on later runs until the session expires server-side.
 
 ### `getImports`
 

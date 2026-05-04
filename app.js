@@ -7,8 +7,31 @@ import readline from 'readline';
 import { CookieJar } from 'tough-cookie';
 const base = 'https://web.budgetbakers.com';
 const endpoint = `${base}/api`;
-const jar = new CookieJar();
+const COOKIE_FILE = 'cookies.json';
+const loadCookieJar = () => {
+    if (!fs.existsSync(COOKIE_FILE)) { return new CookieJar(); }
+    try {
+        return CookieJar.deserializeSync(JSON.parse(fs.readFileSync(COOKIE_FILE, 'utf8')));
+    } catch {
+        return new CookieJar();
+    }
+};
+const jar = loadCookieJar();
+const saveCookieJar = () => {
+    fs.writeFileSync(COOKIE_FILE, JSON.stringify(jar.serializeSync(), null, 2));
+};
+const hasSessionCookie = async () => {
+    const cookies = await jar.getCookies(base);
+    return cookies.some((cookie) => cookie.key.includes('session-token'));
+};
 const client = wrapper(axios.create({ jar, withCredentials: true }));
+client.interceptors.response.use((res) => {
+    saveCookieJar();
+    return res;
+}, (err) => {
+    if (err.response) { saveCookieJar(); }
+    return Promise.reject(err);
+});
 let userId = null;
 
 /**
@@ -107,16 +130,16 @@ const getCsrfToken = () => new Promise((resolve, reject) => {
 });
 
 /**
- * Exchanges auth and CSRF tokens for a session cookie and extracts the session token.
+ * Exchanges auth and CSRF tokens for a session cookie.
  * @param {string} authTokenInfo - The authentication token info from getAuthTokenInfo.
  * @param {string} csrfToken - The CSRF token from getCsrfToken.
- * @returns {Promise<string>} Resolves with the session token string.
- * @throws {Error} If setting the session token fails or the token cannot be extracted.
+ * @returns {Promise<void>} Resolves when the session cookie is set.
+ * @throws {Error} If setting the session token fails.
  */
 const setSessionToken = async (authTokenInfo, csrfToken) => {
     try {
         const callbackUrl = (await jar.getCookies(base)).find((cookie) => cookie.key.includes('callback-url'))?.value || base;
-        const sessionRes = await client.post(`${endpoint}/auth/callback/sso`, qs.stringify({
+        await client.post(`${endpoint}/auth/callback/sso`, qs.stringify({
             token: authTokenInfo.token,
             refreshPossibleAt: authTokenInfo.refreshPossibleAt,
             csrfToken,
@@ -132,14 +155,10 @@ const setSessionToken = async (authTokenInfo, csrfToken) => {
                 'Sec-Fetch-Site': 'same-origin'
             }
         });
-        const sessionToken = sessionRes.headers['set-cookie']
-            ?.find((cookie) => cookie.startsWith('__Secure-next-auth.session-token='))
-            ?.split(';')[0].split('=')[1];
-        if (sessionToken) {
-            return sessionToken;
-        } else {
-            throw Error('Setting session token failed', { cause: `No session token in response: ${JSON.stringify({ headers: sessionRes.headers, data: sessionRes.data })}` });
+        if (!(await hasSessionCookie())) {
+            throw Error('No session cookie in response');
         }
+        saveCookieJar();
     } catch (err) {
         const resp = err?.response;
         const errData = resp ? JSON.stringify(resp.data) : err;
@@ -166,44 +185,44 @@ const getUserId = () => new Promise((resolve, reject) => {
 });
 
 /**
- * Reuses the locally stored session token and refreshes the cached user id.
- * @returns {Promise<{sessionToken: string, userId: string}>} Resolves with the reused session token and user id.
- * @throws {Error} If no token exists or the stored token is no longer valid.
+ * Reuses the locally stored session cookies and refreshes the cached user id.
+ * @returns {Promise<string>} Resolves with the user id.
+ * @throws {Error} If no cookies exist or the stored session is no longer valid.
  */
-const reuseToken = async () => {
-    const sessionToken = fs.existsSync('TOKEN') ? fs.readFileSync('TOKEN', 'utf-8').trim() : null;
-    if (!sessionToken) { throw Error('No session token found'); }
+const reuseSession = async () => {
+    if (!fs.existsSync(COOKIE_FILE)) { throw Error('No session cookies found'); }
+    if (!(await hasSessionCookie())) { throw Error('No session cookie found'); }
     try {
-        await jar.setCookie(`__Secure-next-auth.session-token=${sessionToken}; Path=/; Secure; HttpOnly; SameSite=Lax`, base);
+        await client.get(`${endpoint}/auth/session`);
         userId = await getUserId();
-        fs.writeFileSync('TOKEN', sessionToken);
-        return sessionToken;
+        saveCookieJar();
+        return userId;
     } catch (err) {
-        throw Error('Reusing session token failed', { cause: err });
+        throw Error('Reusing session cookies failed', { cause: err });
     }
 }
 
 /**
  * Authenticates a user with the BudgetBakers API.
  * @param {string} email - The e-mail address to use for login.
- * @returns {Promise<{sessionToken: string, userId: string}>} Resolves with sessionToken and userId after successful authentication.
+ * @returns {Promise<string>} Resolves with userId after successful authentication.
  * @throws {Error} If the e-mail address is missing or the login process fails.
  */
 const login = async (email) => {
     if (!email) { throw Error('Login failed', { cause: 'E-mail address is required' }); }
 
-    let sessionToken = await reuseToken().catch(() => null);
-    if (sessionToken) { return { sessionToken, userId }; }
+    userId = await reuseSession().catch(() => null);
+    if (userId) { return userId; }
 
     try {
         const ssoKey = await requestLogin(email);
         const ssoToken = await requestSsoToken();
         const authTokenInfo = await getAuthTokenInfo(email, ssoKey, ssoToken);
         const csrfToken = await getCsrfToken();
-        sessionToken = await setSessionToken(authTokenInfo, csrfToken);
+        await setSessionToken(authTokenInfo, csrfToken);
         userId = await getUserId();
-        fs.writeFileSync('TOKEN', sessionToken);
-        return { sessionToken, userId };
+        saveCookieJar();
+        return userId;
     } catch (err) {
         throw Error('Login failed', { cause: err });
     }
