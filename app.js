@@ -7,31 +7,53 @@ import readline from 'readline';
 import { CookieJar } from 'tough-cookie';
 const base = 'https://web.budgetbakers.com';
 const endpoint = `${base}/api`;
-const COOKIE_FILE = 'cookies.json';
+const defaultStateDir = '.';
+const cookieFileName = '.cookies.json';
+
+const getState = (dir = defaultStateDir) => ({
+    dir,
+    cookieFile: path.join(dir, cookieFileName)
+});
+
+let state = getState();
+let jar = null;
+let client = null;
+
+const ensureStateDir = () => {
+    if (!fs.existsSync(state.dir)) { fs.mkdirSync(state.dir, { recursive: true }); }
+};
 const loadCookieJar = () => {
-    if (!fs.existsSync(COOKIE_FILE)) { return new CookieJar(); }
+    if (!fs.existsSync(state.cookieFile)) { return new CookieJar(); }
     try {
-        return CookieJar.deserializeSync(JSON.parse(fs.readFileSync(COOKIE_FILE, 'utf8')));
+        return CookieJar.deserializeSync(JSON.parse(fs.readFileSync(state.cookieFile, 'utf8')));
     } catch {
         return new CookieJar();
     }
 };
-const jar = loadCookieJar();
 const saveCookieJar = () => {
-    fs.writeFileSync(COOKIE_FILE, JSON.stringify(jar.serializeSync(), null, 2));
+    ensureStateDir();
+    fs.writeFileSync(state.cookieFile, JSON.stringify(jar.serializeSync(), null, 2));
 };
 const hasSessionCookie = async () => {
     const cookies = await jar.getCookies(base);
     return cookies.some((cookie) => cookie.key.includes('session-token'));
 };
-const client = wrapper(axios.create({ jar, withCredentials: true }));
-client.interceptors.response.use((res) => {
-    saveCookieJar();
-    return res;
-}, (err) => {
-    if (err.response) { saveCookieJar(); }
-    return Promise.reject(err);
-});
+const createClient = () => {
+    jar = loadCookieJar();
+    client = wrapper(axios.create({ jar, withCredentials: true }));
+    client.interceptors.response.use((res) => {
+        saveCookieJar();
+        return res;
+    }, (err) => {
+        if (err.response) { saveCookieJar(); }
+        return Promise.reject(err);
+    });
+};
+const configureState = (dir = defaultStateDir) => {
+    state = getState(dir);
+    createClient();
+};
+configureState();
 let userId = null;
 
 /**
@@ -190,7 +212,7 @@ const getUserId = () => new Promise((resolve, reject) => {
  * @throws {Error} If no cookies exist or the stored session is no longer valid.
  */
 const reuseSession = async () => {
-    if (!fs.existsSync(COOKIE_FILE)) { throw Error('No session cookies found'); }
+    if (!fs.existsSync(state.cookieFile)) { throw Error('No session cookies found'); }
     if (!(await hasSessionCookie())) { throw Error('No session cookie found'); }
     try {
         await client.get(`${endpoint}/auth/session`);
@@ -205,12 +227,14 @@ const reuseSession = async () => {
 /**
  * Authenticates a user with the BudgetBakers API.
  * @param {string} email - The e-mail address to use for login.
+ * @param {string} [stateDir='.'] - Directory where `.cookies.json` is stored.
  * @returns {Promise<string>} Resolves with userId after successful authentication.
  * @throws {Error} If the e-mail address is missing or the login process fails.
  */
-const login = async (email) => {
+const login = async (email, stateDir = '.') => {
     if (!email) { throw Error('Login failed', { cause: 'E-mail address is required' }); }
 
+    configureState(stateDir);
     userId = await reuseSession().catch(() => null);
     if (userId) { return userId; }
 
