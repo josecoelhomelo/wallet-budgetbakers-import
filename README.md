@@ -54,6 +54,10 @@ In order to validate the login process, the module will prompt the user to enter
 
 Pass a second argument to store `.cookies.json` in another directory.
 
+> To avoid the e-mail SSO prompt every time the session expires, place a long-lived auth token in a `.token` file in the state directory. When the stored cookie session is no longer valid, `login` will use this token to mint a fresh session automatically, and only fall back to the e-mail flow if the token is missing or rejected.<br>
+>The token is the `X-Auth-Token` the BudgetBakers apps send to their backend. Once captured, it is valid until it expires server-side (around a year), so it only needs to be refreshed occasionally. The resolution order on each `login` is: reuse `.cookies.json` → mint from `.token` → e-mail SSO.<br>
+>In order to retrieve the token, some reverse engineering is necessary, which for security reasons won't be detailed here.
+
 ### `getImports`
 
 Retrieves an array of imported files.

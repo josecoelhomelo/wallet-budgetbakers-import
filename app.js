@@ -9,10 +9,12 @@ const base = 'https://web.budgetbakers.com';
 const endpoint = `${base}/api`;
 const defaultStateDir = '.';
 const cookieFileName = '.cookies.json';
+const tokenFileName = '.token';
 
 const getState = (dir = defaultStateDir) => ({
     dir,
-    cookieFile: path.join(dir, cookieFileName)
+    cookieFile: path.join(dir, cookieFileName),
+    tokenFile: path.join(dir, tokenFileName)
 });
 
 let state = getState();
@@ -54,6 +56,10 @@ const configureState = (dir = defaultStateDir) => {
     createClient();
 };
 configureState();
+const loadToken = () => {
+    if (!fs.existsSync(state.tokenFile)) { return null; }
+    return fs.readFileSync(state.tokenFile, 'utf8').trim() || null;
+};
 let userId = null;
 
 /**
@@ -225,6 +231,23 @@ const reuseSession = async () => {
 }
 
 /**
+ * Mints a fresh web session from the long-lived auth token in `.token`,
+ * skipping the e-mail SSO flow entirely. The token can be captured once from
+ * the app's traffic and is valid until it expires server-side (~1 year).
+ * @returns {Promise<string>} Resolves with userId on success.
+ * @throws {Error} If no token is found or the session cannot be established.
+ */
+const reauthWithToken = async () => {
+    const token = loadToken();
+    if (!token) { throw Error('No auth token found'); }
+    const csrfToken = await getCsrfToken();
+    await setSessionToken({ token }, csrfToken);
+    userId = await getUserId();
+    saveCookieJar();
+    return userId;
+};
+
+/**
  * Authenticates a user with the BudgetBakers API.
  * @param {string} email - The e-mail address to use for login.
  * @param {string} [stateDir='.'] - Directory where `.cookies.json` is stored.
@@ -236,6 +259,9 @@ const login = async (email, stateDir = '.') => {
 
     configureState(stateDir);
     userId = await reuseSession().catch(() => null);
+    if (userId) { return userId; }
+
+    userId = await reauthWithToken().catch(() => null);
     if (userId) { return userId; }
 
     try {
