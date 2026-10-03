@@ -405,13 +405,19 @@ const importFile = async (params) => {
             }
             await fs.promises.writeFile(file, fileContent.join('\n'));
         }
-        const recordsLength = fileContent.length;  
+        const recordsLength = fileContent.length;
+        const previousIds = new Set(imports.map((item) => item.itemId));
         await upload(file, importEmail);
-        imports = await getImports(accountId);
-        if (!imports.length) {
-            throw Error('Import failed', { cause: 'No imports found after upload. Please check the import e-mail address and account id' });
+        let newImport = null;
+        for (let attempt = 0; attempt < 10 && !newImport; attempt++) {
+            if (attempt) { await new Promise((resolve) => setTimeout(resolve, 2000)); }
+            imports = await getImports(accountId);
+            newImport = imports.find((item) => !previousIds.has(item.itemId));
         }
-        const fileId = imports[0]?.itemId;
+        if (!newImport) {
+            throw Error('Import failed', { cause: 'Uploaded file not found in imports. Please check the import e-mail address and account id' });
+        }
+        const fileId = newImport.itemId;
         if (process) {
             const transactionId = await processImport(fileId, recordsLength);
             return transactionId;
